@@ -300,9 +300,51 @@ unsigned float_twice(unsigned uf) {
  *   Max ops: 30
  *   Rating: 4
  */
-unsigned float_i2f(int x) {
-  return 2;
+unsigned float_i2f(int a) {
+    unsigned ua = (unsigned) a;
+    
+    unsigned signMask = 0x80000000;
+    unsigned sign = ua & signMask;
+    ua = sign ? -ua : ua;
+
+    unsigned tmp = ua;
+    int firstOneIdx = 31;
+    while (firstOneIdx >= 0 && !(tmp & signMask)) {
+        tmp <<= 1;
+        firstOneIdx--;
+    }
+
+    unsigned E = firstOneIdx;
+    unsigned bias = 127;
+    unsigned exp = (E + bias) << 23;
+    unsigned frac;
+
+    unsigned firstOneMask = 1 << firstOneIdx;
+    if (firstOneIdx <= 23)
+        frac = (ua - firstOneMask) << (23 - firstOneIdx);
+    else {
+        int roundBitIdx = firstOneIdx - 24;
+        unsigned roundBit = (ua >> roundBitIdx) & 1;
+        frac = (ua - firstOneMask) >> (firstOneIdx - 23);
+
+        if (roundBit) {
+            int stickyBitIdx = roundBitIdx - 1;
+            unsigned stickyBitsMask = 0;
+            for (int i = 0; i <= stickyBitIdx; i++)
+                stickyBitsMask = (stickyBitsMask << 1) + 1;
+            unsigned stickyBits = ua & stickyBitsMask;
+            if (stickyBits) 
+                frac += 1;   
+            else {
+                unsigned guardBit = frac & 1;
+                if (guardBit)
+                    frac += 1;
+            }
+        }
+    } 
+    return ua ? sign + exp + frac : 0;
 }
+
 /* 
  * float_f2i - Return bit-level equivalent of expression (int) f
  *   for floating point argument f.
