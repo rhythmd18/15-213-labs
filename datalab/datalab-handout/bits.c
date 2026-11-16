@@ -358,5 +358,34 @@ unsigned float_i2f(int a) {
  *   Rating: 4
  */
 int float_f2i(unsigned uf) {
-  return 2;
+    unsigned signMask = 0x80000000;
+    unsigned sign = uf & signMask;
+
+    unsigned expMask = 0x7f800000;
+    unsigned exp = (uf & expMask) >> 23;
+    int bias = 127;
+    int E;
+    int result;
+
+    if (exp == 0xff)
+        return 0x80000000u;
+    else if (exp == 0) {
+        return 0;
+    } else {
+        E = exp - bias;
+        unsigned fracMask = 0x7fffff;
+        unsigned frac = uf & fracMask;
+        unsigned M = frac + (1 << 23);
+        if (E < 0) {
+            return 0;
+        } else {
+            if (E > 23) {
+                result = M << (E - 23);
+            } else
+                result = M >> (23 - E);
+        }
+    }
+
+    return sign ? -result : result;
 }
+
