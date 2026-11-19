@@ -161,8 +161,8 @@ int tmin(void) {
  */
 int isTmax(int x) {
     int plusOne = x + 1;
-    int diff = plusOne + plusOne;
-    return !diff && plusOne;
+    unsigned diff = plusOne + plusOne;
+    return !(~plusOne ^ x) & !!plusOne;
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -211,7 +211,7 @@ int isAsciiDigit(int x) {
  */
 int conditional(int x, int y, int z) {
     x = !!x;
-    return (((~x + 1) & y) | ((x + ~x + 1) & z)) | ((x & y) | (~x & z));
+    return ((~x + 1) & y) | (~(~x + 1) & z);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -256,7 +256,21 @@ int logicalNeg(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  return 0;
+    int sign = x >> 31;
+    int val = (sign & ~x) | (~sign & x);
+    int b16, b8, b4, b2, b1, b0;
+    b16 = !!(val >> 16) << 4;
+    val = val >> b16;
+    b8 = !!(val >> 8) << 3;
+    val = val >> b8;
+    b4 = !!(val >> 4) << 2;
+    val = val >> b4;
+    b2 = !!(val >> 2) << 1;
+    val = val >> b2;
+    b1 = !!(val >> 1);
+    val = val >> b1;
+    b0 = val;
+    return b16 + b8 + b4 + b2 + b1 + b0 + 1;
 }
 //float
 /* 
@@ -287,7 +301,7 @@ unsigned float_twice(unsigned uf) {
         exp += (1 << 23);
         result = sign + exp + frac;
         if ((result & exp_flag) == exp_flag)
-            result = sign_flag + exp_flag;
+            result = sign + exp_flag;
     }
     return result;
 }
@@ -360,6 +374,7 @@ unsigned float_i2f(int a) {
 int float_f2i(unsigned uf) {
     unsigned signMask = 0x80000000;
     unsigned sign = uf & signMask;
+    unsigned outOfRange = 0x80000000u;
 
     unsigned expMask = 0x7f800000;
     unsigned exp = (uf & expMask) >> 23;
@@ -368,24 +383,22 @@ int float_f2i(unsigned uf) {
     int result;
 
     if (exp == 0xff)
-        return 0x80000000u;
+        return result = outOfRange;
     else if (exp == 0) {
         return 0;
     } else {
         E = exp - bias;
+        if (E < 0)
+            return 0;
+        else if (E > 30)
+            return outOfRange;
         unsigned fracMask = 0x7fffff;
         unsigned frac = uf & fracMask;
         unsigned M = frac + (1 << 23);
-        if (E < 0) {
-            return 0;
-        } else {
-            if (E > 23) {
-                result = M << (E - 23);
-            } else
-                result = M >> (23 - E);
-        }
+        if (E > 23)
+            result = M << (E - 23);
+        else
+            result = M >> (23 - E); 
     }
-
     return sign ? -result : result;
 }
-
